@@ -5,5 +5,5 @@ public/js/
 node_modules/
 
 #VS Code thing
-vscode/
+.vscode/
 

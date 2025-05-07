@@ -3,7 +3,7 @@
 
     document.addEventListener('click', (e)=>{
 
-        if ( picture.hover ) { 
+        if ( picture.hover && mode == "creation" ) { 
           new Skeleton_Point( e.offsetX, e.offsetY ); 
         }
 
@@ -13,6 +13,9 @@
 
 
 
+
+
+let mode = "drop";
 
 
 
@@ -92,6 +95,8 @@ const picture = {
 
         if (file) {
 
+            mode = "creation";
+
             const wrap = picture.wrap();
 
             const img = document.createElement('img');
@@ -118,6 +123,8 @@ const picture = {
                 picture.dom = document.getElementById('picture');
                 picture.wrap = document.getElementById('wrap_img');
                 picture.events();
+
+                new Validation_button();
 
               };
 
@@ -150,9 +157,13 @@ const picture = {
 
         picture.wrap.addEventListener('mousemove', (e)=>{
 
-            picture.display_axes( true );
-            picture.update_axes_pos( e );
-            picture.hover = true;
+            if ( mode == "creation" ) {
+                
+                picture.display_axes( true );
+                picture.update_axes_pos( e );
+                picture.hover = true;
+
+            }
 
         });
 
@@ -226,7 +237,26 @@ class Skeleton_Point {
         if ( Skeleton_Point.all[ id ] ) {
             return Skeleton_Point.all[ id ];
         }
-        return false;
+        else return false;
+
+    }
+
+
+    static move_mode() {
+
+        Object.keys( Skeleton_Point.all ).forEach( aKeyPoint => {
+
+            const aPoint = Skeleton_Point.all[ aKeyPoint ];
+
+            aPoint.ref.className = 'skeleton-point skeleton-point-hover';
+
+            aPoint.ref.addEventListener('mouseover', (e) => {
+
+                let link_instance = Skeleton_Point.get_by_id( e.target.id );
+
+            });
+
+        });
 
     }
 
@@ -284,6 +314,8 @@ class Link {
         this.b = b;
         this.id = 'link_' + Link.id;
         Link.all[ this.id ] = this;
+
+        this.draw();
     }
 
 
@@ -292,11 +324,50 @@ class Link {
     static all = {};
 
 
+    static get_by_id( id ) {
+
+        if ( Link[ id ] ) {
+            return Link[ id ];
+        }
+        return null;
+
+    }
+
+
     draw() {
         let div = document.createElement('div');
         div.id = this.id;
         div.className = Link.CLASSNAME;
+
+        this.calc_orientation();
+        this.calc_length();
+
         
+        div.style.width = this.length + 'px';
+        div.style.left = this.a.x + 'px';
+        div.style.top = this.a.y + 'px';
+        
+        div.style.transform = `rotate(${this.calc_rad()}rad)`;
+
+        picture.wrap.append( div );
+        this.ref = document.querySelector('#' + this.id);
+    }
+
+
+    calc_orientation() {
+        this.orientation = {};
+        this.orientation.x = this.a.x - this.b.x;
+        this.orientation.y = this.a.y - this.b.y;
+    }
+
+
+    calc_length() {
+        this.length = Math.sqrt( Math.pow(this.orientation.x, 2) + Math.pow(this.orientation.y, 2) );
+    }
+
+
+    calc_rad() {
+        return Math.atan2( this.orientation.y, this.orientation.x ) - (Math.PI);
     }
 
 
@@ -308,3 +379,65 @@ class Link {
 
 
 
+class Validation_button {
+
+
+    constructor() {
+        this.init();
+    }
+
+
+    init() {
+
+        let div = document.createElement('div');
+        div.id = 'validation_button';
+        div.innerHTML = 'Valider';
+        document.body.append( div );
+        this.ref = document.querySelector('#validation_button');
+        this.event();
+
+    }
+
+
+    event() {
+        this.ref.addEventListener('click', (e)=>{
+            this.action();
+        });
+    }
+
+
+    action() {
+        new Skeleton();
+        this.end();
+    }
+
+
+    end() {
+        this.ref.remove();
+    }
+
+}
+
+
+
+
+
+
+
+class Skeleton {
+
+
+    constructor() {
+        this.init();
+    }
+
+
+    init() {
+        mode = "move";
+        picture.display_axes( false );
+
+        Skeleton_Point.move_mode();
+    }
+
+
+}

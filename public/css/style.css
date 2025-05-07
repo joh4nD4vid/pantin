@@ -1,12 +1,98 @@
+/* Général */
+
 html, body {
     margin: 0;
     height: 100%;
- }
-
- #canvas {
     width: 100%;
+    display: flex;
+    overflow : hidden
+}
+
+
+
+
+/* Zone de drop */
+ 
+#dropZone {
+    border: 2px dashed #ccc;
+    padding: 20px;
+    text-align: center;
+    font-family: monospace;
+    width: 100%;
+}
+
+
+
+
+/* Image de fond du squelette */
+
+#wrap-picture {
     height: 100%;
-    display: block;
- }  
- 
- 
+    width: 100%;
+    display : flex;
+    align-items: center;
+    justify-content: space-around;
+}
+
+#wrap_img {
+    position : absolute;
+}
+
+#picture {
+    position : absolute;
+    user-select: none;
+    pointer-events: none;
+}
+
+
+
+
+
+
+/* Axes de placement des points du squelette */
+
+#axeX, #axeY {
+    position : absolute;
+    user-select: none;
+    pointer-events: none;
+    z-index : 999;
+}
+
+#axeX {
+    height: 100%;
+    width: 1px;
+    border-right : 1px dashed black;
+}
+
+#axeY {
+    height: 1px;
+    width: 100%;
+    border-top : 1px dashed black;
+}
+
+.invisible {
+    display : none;
+}
+
+
+
+
+
+
+
+
+
+/* Points du squelette */
+
+.skeleton-point {
+    position : absolute;
+    height: 15px;
+    width: 15px;
+    background-color: #3494e2;
+    border-radius: 15px;
+}
+
+
+
+
+/* Liens du squelette */

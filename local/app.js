@@ -6,7 +6,23 @@
         if ( picture.hover && mode == "creation" ) { 
           new Skeleton_Point( e.offsetX, e.offsetY ); 
         }
+        
+    });
+    
+    document.addEventListener('mousedown', (e)=>{
 
+        if ( mode == "move" ) {
+            Skeleton_Point.get_hover();
+        }
+        
+    });
+    
+    document.addEventListener('mouseup', (e)=>{
+
+        if ( mode == "move" ) {
+            Skeleton_Point.end_hover();
+        }
+        
     });
 
 // - - - - - - - - - - - - - - - - - - - - - - 
@@ -87,7 +103,30 @@ const picture = {
     axeX : document.querySelector('#axeX'),
     axeY : document.querySelector('#axeY'),
 
+    top : undefined,
+    left : undefined,
+
     hover : false,
+
+
+    get_position: () => {
+
+        if (picture.dom) {
+
+            const rect = picture.dom.getBoundingClientRect();
+
+            return {
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+            };
+
+        }
+        
+        return null;
+
+    },
 
 
 
@@ -107,7 +146,6 @@ const picture = {
 
               img.onload = () => {
 
-                console.log( img.naturalWidth );
                 wrap_img.style.width = img.naturalWidth + 'px';
                 wrap_img.style.height = img.naturalHeight + 'px';
                 wrap_img.id =  "wrap_img";
@@ -125,6 +163,10 @@ const picture = {
                 picture.events();
 
                 new Validation_button();
+
+                let pos = picture.get_position();
+                picture.top = pos.top;
+                picture.left = pos.left;
 
               };
 
@@ -162,6 +204,14 @@ const picture = {
                 picture.display_axes( true );
                 picture.update_axes_pos( e );
                 picture.hover = true;
+
+            }
+            
+            if ( mode == "move" ) {
+
+                if ( Skeleton_Point.is_it_a_dragged ) {
+                    Skeleton_Point.is_it_a_dragged.update_pos(e);
+                }
 
             }
 
@@ -219,6 +269,10 @@ class Skeleton_Point {
         this.x = x;
         this.y = y;
 
+        this.links = [];
+
+        this.hover = false;
+
         Skeleton_Point.all[ this.id ] = this;
         this.init();
         this.testLink();
@@ -231,6 +285,9 @@ class Skeleton_Point {
 
     static all = {};
 
+    static is_it_a_dragged = false;
+
+
 
     static get_by_id( id ) {
 
@@ -238,6 +295,33 @@ class Skeleton_Point {
             return Skeleton_Point.all[ id ];
         }
         else return false;
+
+    }
+
+
+    static get_hover() {
+
+        Object.keys( Skeleton_Point.all ).forEach( aKeyPoint => {
+
+            const aPoint = Skeleton_Point.all[ aKeyPoint ];
+
+            if ( aPoint.hover ) {
+                aPoint.dragged( true );
+            }
+
+        });
+
+    }
+
+
+    static end_hover() {
+
+        Object.keys( Skeleton_Point.all ).forEach( aKeyPoint => {
+
+            const aPoint = Skeleton_Point.all[ aKeyPoint ];
+            aPoint.dragged( false );
+
+        });
 
     }
 
@@ -250,11 +334,21 @@ class Skeleton_Point {
 
             aPoint.ref.className = 'skeleton-point skeleton-point-hover';
 
+
             aPoint.ref.addEventListener('mouseover', (e) => {
 
-                let link_instance = Skeleton_Point.get_by_id( e.target.id );
+                let point_instance = Skeleton_Point.get_by_id( e.target.id );
+                point_instance.hover = true;
 
             });
+            
+            aPoint.ref.addEventListener('mouseleave', (e) => {
+
+                let point_instance = Skeleton_Point.get_by_id( e.target.id );
+                point_instance.hover = false;
+
+            });
+
 
         });
 
@@ -295,6 +389,42 @@ class Skeleton_Point {
     }
 
 
+    dragged( action ) {
+
+        const CLASSIC_COLOR = "#10cefd";
+        const DRAGGED_COLOR = "#f93ad2";
+
+        let new_color = action ? DRAGGED_COLOR : CLASSIC_COLOR;
+        this.ref.style.backgroundColor = new_color;
+
+        Skeleton_Point.is_it_a_dragged = action ? this : false;
+    
+    }
+
+
+    update_pos( e ) {
+        this.x = e.clientX - picture.left;
+        this.y = e.clientY - picture.top;
+        this.pos();
+        this.update_links();
+    }
+
+
+    add_a_link( link ) {
+        this.links.push( link );
+    }
+
+
+
+    update_links() {
+
+        this.links.forEach( aLink => {
+            aLink.update( this );
+        });
+
+    }
+
+
 
 }
 
@@ -308,14 +438,21 @@ class Skeleton_Point {
 class Link {
 
     constructor( a, b ) {
+
         Link.id++;
 
-        this.a = a;
-        this.b = b;
+
+        this.points = [];
+        this.points.push({ 'connexion' : 'left', 'SK_Point' : a });
+        this.points.push({ 'connexion' : 'right', 'SK_Point' : b });
+
+
         this.id = 'link_' + Link.id;
         Link.all[ this.id ] = this;
 
-        this.draw();
+        this.init_pos();
+        this.connect_points();
+
     }
 
 
@@ -324,13 +461,32 @@ class Link {
     static all = {};
 
 
+
     static get_by_id( id ) {
 
-        if ( Link[ id ] ) {
-            return Link[ id ];
+        if ( Link.all[ id ] ) {
+            return Link.all[ id ];
         }
         return null;
 
+    }
+
+
+    connect_points() {
+
+        this.points.forEach( aPoint => {
+            aPoint.SK_Point.add_a_link(this);
+        });
+
+    }
+
+
+    init_pos() {
+        this.pos = {};
+        this.pos.x = this.points[0].SK_Point.x;
+        this.pos.y = this.points[0].SK_Point.y;
+
+        this.draw();
     }
 
 
@@ -339,15 +495,18 @@ class Link {
         div.id = this.id;
         div.className = Link.CLASSNAME;
 
+        
         this.calc_orientation();
-        this.calc_length();
+        this.length = this.calc_length();
 
-        
         div.style.width = this.length + 'px';
-        div.style.left = this.a.x + 'px';
-        div.style.top = this.a.y + 'px';
-        
-        div.style.transform = `rotate(${this.calc_rad()}rad)`;
+        div.style.left = this.pos.x  + 'px';
+        div.style.top = this.pos.y + 'px';
+
+
+        this.calc_rad();
+        div.style.transform = `rotate(${this.angle}rad)`;
+
 
         picture.wrap.append( div );
         this.ref = document.querySelector('#' + this.id);
@@ -356,18 +515,95 @@ class Link {
 
     calc_orientation() {
         this.orientation = {};
-        this.orientation.x = this.a.x - this.b.x;
-        this.orientation.y = this.a.y - this.b.y;
+        this.orientation.x = this.points[1].SK_Point.x - this.points[0].SK_Point.x;
+        this.orientation.y = this.points[1].SK_Point.y - this.points[0].SK_Point.y;
     }
 
 
     calc_length() {
-        this.length = Math.sqrt( Math.pow(this.orientation.x, 2) + Math.pow(this.orientation.y, 2) );
+        return Math.sqrt( Math.pow(this.orientation.x, 2) + Math.pow(this.orientation.y, 2) );
     }
 
 
     calc_rad() {
-        return Math.atan2( this.orientation.y, this.orientation.x ) - (Math.PI);
+        this.angle = Math.atan2( this.orientation.y, this.orientation.x );
+    }
+
+
+    update( origin ) {
+
+        this.get_actual_active_and_passive_points( origin );
+
+        this.ref.style.left = origin.x + 'px';
+        this.ref.style.top = origin.y + 'px';
+        
+        this.calc_orientation();
+        this.update_angle();
+        this.calc_tension();
+
+    }
+
+
+    get_actual_active_and_passive_points( origin ) {
+
+        this.points.forEach( aPoint => {
+
+            if( aPoint.SK_Point == origin ) {
+                this.actual_active_point = aPoint;
+            }
+            else {
+                this.actual_passive_point = aPoint;
+            }
+
+        });
+
+    }
+
+
+    update_angle() {
+
+        let rotation_center =  this.actual_active_point.connexion;
+        
+        let diff_angle = ( rotation_center == 'right' ) ? Math.PI : 0; 
+
+        this.calc_rad();
+        this.ref.style.transform = `rotate(${this.this.angle + diff_angle}rad)`;
+
+    }
+
+
+    calc_tension() {
+
+        //TODO Calculer la différence entre le point "passif"
+        // et le bon bout du lien.
+
+        let connexion = this.actual_passive_point.connexion;
+        let passive_point = this.actual_passive_point.SK_Point;
+
+        let diff_x = ( connexion == 'left' ) ? 0 : this.lenght
+
+        let new_length = this.calc_length();
+        let tension = new_length - this.length;
+        this.calc_norm();
+        
+        this.tension = {};
+        this.tension.x = this.norm.x * tension;
+        this.tension.y = this.norm.y * tension;
+
+        this.apply_tension();
+    }
+
+
+    calc_norm() {
+        this.norm = {};
+        this.norm.x = this.orientation.x / this.length;
+        this.norm.y = this.orientation.y / this.length;
+    }
+
+
+    apply_tension() {
+        this.pos.x += this.tension.x;
+        this.pos.y += this.tension.y;
     }
 
 
@@ -432,6 +668,7 @@ class Skeleton {
     }
 
 
+
     init() {
         mode = "move";
         picture.display_axes( false );
@@ -440,4 +677,23 @@ class Skeleton {
     }
 
 
+
 }
+
+
+
+
+
+
+
+let compte = 0;
+
+
+function animate() {
+
+    requestAnimationFrame( animate );
+    compte++;
+
+}
+
+animate();
